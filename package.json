@@ -1,0 +1,31 @@
+{
+    "name": "@candlelib/dev-tools",
+    "type": "module",
+    "version": "0.0.1",
+    "description": "Development Tools for Candle Library",
+    "main": "./build/library/cli.js",
+    "license": "MIT",
+    "scripts": {
+        "install": "./scripts/bash/install.sh"
+    },
+    "dependencies": {
+        "@candlelib/url": "*",
+        "@candlelib/wax": "*",
+        "@candlelib/wind": "*",
+        "@candlelib/wick": "*",
+        "@candlelib/spark": "*",
+        "@candlelib/glow": "*",
+        "@candlelib/taper": "*",
+        "@candlelib/conflagrate": "*",
+        "@candlelib/js": "*",
+        "@candlelib/css": "*",
+        "@candlelib/ts": "*",
+        "@candlelib/html": "*",
+        "@candlelib/hydrocarbon": "*",
+        "@candlelib/lantern": "*"
+    },
+    "candle-environment": {},
+    "workspaces": [
+        "./packages/*"
+    ]
+}
