@@ -1,8 +1,8 @@
 import child_process from "child_process";
 
-export function gitDiff(CWD: string) {
+export function gitStatus(CWD: string) {
     try {
-        return child_process.execSync(`git status -s --color=always`,
+        return child_process.execSync(`git status -s --column`,
             { cwd: CWD }
         ).toString();
     } catch (e) {

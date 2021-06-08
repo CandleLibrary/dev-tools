@@ -2,13 +2,20 @@ import { getPackageJsonObject, xtColor, col_css, xtReset, xtF } from "@candlelib
 import child_process from "child_process";
 import fs from "fs";
 import path from "path";
-import { gitDiff, gitLog, gitAdd, gitCommit } from "./git.js";
+import { gitStatus, gitLog, gitAdd, gitCommit } from "./git.js";
 import { Dependency, Dependencies, CommitLog, TestStatus, DevPkg, Version } from "../types/types";
-
 
 const fsp = fs.promises;
 
 
+
+const channel_hierarchy = {
+    "": 100000,
+    "release": 50000,
+    "beta": 25000,
+    "alpha": 12500,
+    "experimental": 6250,
+};
 
 /**
  * Default workspace directory
@@ -176,7 +183,7 @@ export async function createDepend(dep_pkg: string | DevPkg): Promise<Dependency
             .map(g => { if (g) for (const name in g) g[name] = g[name].trim(); return g; })
             .filter(m => !!m);
 
-        const DIRTY_REPO = getRepoDiffString(dep_pkg).length > 0;
+        const DIRTY_REPO = gitStatus(dep_pkg._workspace_location).length > 0;
         const dep = {
             name: dep_pkg.name,
             package: dep_pkg,
@@ -194,12 +201,6 @@ export async function createDepend(dep_pkg: string | DevPkg): Promise<Dependency
     }
 
     return null;
-
-}
-
-
-function getRepoDiffString(dep_pkg: DevPkg) {
-    return gitDiff(dep_pkg._workspace_location);
 }
 
 /**
@@ -289,15 +290,6 @@ export function getChangeLog(dep: Dependency, release_channel = "", RELEASE = fa
     });
 }
 
-
-const channel_hierarchy = {
-    "": 100000,
-    "release": 50000,
-    "beta": 25000,
-    "alpha": 12500,
-    "experimental": 6250,
-};
-
 function getLatestVersion(...versions: Version[]) {
     return versions.sort((a, b) => {
         if (a.sym[0] > b.sym[0])
@@ -359,7 +351,15 @@ export async function validateDepend(dep: Dependency) {
 
     if (dep.DIRTY_REPO) {
 
-        log(`${dep.name} has uncommitted changes and cannot be versioned: \n${getRepoDiffString(dep.package)}`);
+        const status = gitStatus(dep.package._workspace_location)
+            .split("\n")
+            .map(
+                s => s
+                    .replace(/M/g, xtF(xtColor(col_css.red)) + "M" + xtF(xtReset))
+                    .replace(/^\?\?/g, xtF(xtColor(col_css.green)) + "??" + xtF(xtReset))
+            ).join("\n");
+
+        log(`\n${dep.name} has uncommitted changes and cannot be versioned: \n${status}`);
 
         return false;
     }
