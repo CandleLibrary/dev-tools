@@ -15,7 +15,6 @@
     "devDependencies": {
         "@candlelib/flame": "*",
         "@candlelib/docs": "*",
-        "@candlelib/candle": "*",
         "@candlelib/uri": "*",
         "@candlelib/paraffin": "*",
         "@candlelib/wind": "*",
