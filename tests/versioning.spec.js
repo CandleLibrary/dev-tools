@@ -1,9 +1,9 @@
 import {
-    validateEligibility,
     createDepend,
+    getCandlePackage,
     getPackageDependencies,
-    getNewVersionNumber,
-    testPackage, getWorkspaceEnvironmentVar, getCandlePackage
+    getWorkspaceEnvironmentVar,
+    testPackage
 } from "../build/library/utils/version-sys.js";
 
 

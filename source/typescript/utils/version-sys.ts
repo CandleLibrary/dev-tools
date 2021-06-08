@@ -1,17 +1,14 @@
-import { getPackageJsonObject, PackageJSONData } from "@candlelib/wax";
+import { getPackageJsonObject } from "@candlelib/wax";
 import child_process from "child_process";
 import fs from "fs";
 import path from "path";
+import { gitDiff, gitLog, gitAdd, gitCommit } from "./git.js";
+import { Dependency, Dependencies, CommitLog, TestStatus, DevPkg, Version } from "../types/types";
 
 
 const fsp = fs.promises;
 
 
-/**
- * package.json object modified with the location of the dev-tools
- * directory
- */
-type DevPkg = PackageJSONData & { _workspace_location: string; };
 
 /**
  * Default workspace directory
@@ -98,54 +95,13 @@ export async function testPackage(pkg: DevPkg): Promise<boolean> {
 
         return true;
     } catch (e) {
-        console.log(e);
+        console.error(e);
     }
 
     return false;
 }
 
 
-const enum TestStatus {
-    NOT_RUN = 0,
-    PASSED = 1,
-    FAILED = -1
-}
-
-type CommitLog = {
-    hash: string;
-    date: string;
-    author: string;
-    message: string;
-};
-
-interface Dependency {
-    name: string;
-    package: DevPkg;
-    TEST_STATUS: TestStatus;
-    reference_count: number;
-    new_version: string;
-
-    /**
-     * Array of commit messages in the repo.
-     */
-    commits: CommitLog[];
-
-    /**
-     * True if there are uncommitted changes
-     * in the repo.
-     */
-    DIRTY_REPO: boolean;
-
-    version_data: {
-        new_version: string;
-        git_version: string;
-        pkg_version: string;
-        latest_version: string;
-        NEW_VERSION_REQUIRED: boolean;
-    };
-}
-
-type Dependencies = Map<string, Dependency>;
 /**
  * Retrieves a list of direct and indirect candlelib dependencies of the specified module
  * @param package_name 
@@ -206,17 +162,13 @@ export async function getPackageDependencies(dep: Dependency) {
 
 export async function createDepend(dep_pkg: string | DevPkg): Promise<Dependency> {
 
-    if (typeof dep_pkg == "string") {
-        console.log(dep_pkg);
+    if (typeof dep_pkg == "string")
         dep_pkg = await getCandlePackage(dep_pkg);
-    }
 
     if (dep_pkg) {
 
-
         const CWD = dep_pkg._workspace_location;
-        const result = child_process.execSync(`git log --no-decorate`, { cwd: CWD });
-        const commit_string = result.toString();
+        const commit_string = gitLog(CWD);
         const commits: CommitLog[] = <any>commit_string
             .split(/^\s*commit\s*/mg)
             .map(str => str.match(/^(?<hash>.*)$\s*author\s*\:(?<author>.*)$\s*date\s*\:(?<date>.*)$(?<message>(.|\.|[\n\s\r])+)/mi)?.groups)
@@ -244,8 +196,10 @@ export async function createDepend(dep_pkg: string | DevPkg): Promise<Dependency
     return null;
 
 }
+
+
 function getRepoDiffString(dep_pkg: DevPkg) {
-    return child_process.execSync(`git status -s`, { cwd: dep_pkg._workspace_location }).toString();
+    return gitDiff(dep_pkg._workspace_location);
 }
 
 /**
@@ -368,10 +322,7 @@ function getLatestVersion(...versions: Version[]) {
     })[0];
 }
 
-type Version = {
-    sym: number[];
-    channel: string;
-};
+
 
 function versionToString(
     new_version: Version,
@@ -407,13 +358,18 @@ export async function versionSysStart() {
 export async function validateDepend(dep: Dependency) {
 
     if (dep.DIRTY_REPO) {
-        console.log(`${dep.name} has uncommitted changes and cannot be versioned: \n${getRepoDiffString(dep.package)}`);
+
+        log(`${dep.name} has uncommitted changes and cannot be versioned: \n${getRepoDiffString(dep.package)}`);
+
         return false;
     }
 
     if (!await testPackage(dep.package)) {
+
         dep.TEST_STATUS = TestStatus.FAILED;
-        console.log(`${dep.name} has failed testing`);
+
+        log(`${dep.name} has failed testing`);
+
         return false;
     }
 
@@ -429,6 +385,7 @@ export async function validateEligibility(primary_repo: Dependency) {
     let CAN_VERSION = true;
 
     let iter = await getPackageDependenciesGen(primary_repo);
+
     let val = await iter.next();
 
     while (val.done == false) {
@@ -460,8 +417,12 @@ export async function validateEligibility(primary_repo: Dependency) {
 
     const dependencies = val.value;
 
-    // All tests passed means we can update the versions 
+
     if (CAN_VERSION)
+
+        // All tests passed means we can update the version of any 
+        // package that has changed, or has changed dependencies
+
         for (const dep of dependencies.values()) {
 
             // Update the package version
@@ -479,23 +440,26 @@ export async function validateEligibility(primary_repo: Dependency) {
 
             if (dep.version_data.NEW_VERSION_REQUIRED) {
 
-                const log = getChangeLog(dep);
+                const logs = getChangeLog(dep);
 
-                if (log.length > 0) {
+                if (logs.length > 0) {
                     //append to change log
 
-                    const changes_log = `## [v${dep.version_data.new_version}] \n\n` + log.join("\n\n");
-                    const cwd = dep.package._workspace_location;
-                    const change_log_path = path.resolve(cwd, "CHANGELOG.md");
+                    const
+                        change_log_entry = `## [v${dep.version_data.new_version}] \n\n` + logs.join("\n\n"),
+
+                        cwd = dep.package._workspace_location,
+
+                        change_log_path = path.resolve(cwd, "CHANGELOG.md");
+
                     let file = "";
 
                     try {
                         file = await fsp.readFile(change_log_path, { encoding: "utf8" });
                     } catch (e) { }
 
-                    await fsp.writeFile(change_log_path, changes_log + "\n\n" + file);
+                    await fsp.writeFile(change_log_path, change_log_entry + "\n\n" + file);
                 }
-
 
                 pkg.version = dep.version_data.new_version;
 
@@ -503,21 +467,22 @@ export async function validateEligibility(primary_repo: Dependency) {
 
                 await fsp.writeFile(path.resolve(pkg._workspace_location, "package.json"), json);
 
-                console.log(`Updating ${dep.name} to v${dep.version_data.new_version}`);
+                log(`Updating ${dep.name} to v${dep.version_data.new_version}`);
 
-                child_process.execSync(
-                    `git add .`,
-                    { cwd: dep.package._workspace_location }
-                );
+                gitAdd(dep.package._workspace_location);
 
-                child_process.execSync(
-                    `git commit -m "version ${dep.version_data.new_version}"`,
-                    { cwd: dep.package._workspace_location }
-                );
-            } else {
-                console.log(`No version change required for ${dep.name} at v${dep.version_data.latest_version}`);
-            }
+                gitCommit(dep.package._workspace_location, `version ${dep.version_data.new_version}`);
+
+            } else
+
+                log(`No version change required for ${dep.name} at v${dep.version_data.latest_version}`);
+
         }
-    else
-        console.log(`Could not version ${primary_repo.name} due to the proceeding error(s).`);
+
+    else log(`Could not version ${primary_repo.name} due to the proceeding error(s).`);
+
+}
+
+function log(...msgs: any[]): void {
+    console.log(...msgs);
 }
