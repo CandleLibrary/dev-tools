@@ -1,15 +1,22 @@
 {
     "name": "@candlelib/dev-tools",
     "type": "module",
-    "version": "0.0.1a",
+    "version": "0.0.1-alpha",
     "description": "Development Tools for Candle Library",
     "main": "./build/library/cli.js",
     "license": "MIT",
+    "bin": {
+        "candle.dev": "./build/library/entry-point/cli.js"
+    },
     "scripts": {
+        "test": "candle.cure ./tests/",
         "install": "./scripts/bash/install.sh"
     },
-    "dependencies": {
-        "@candlelib/url": "*",
+    "devDependencies": {
+        "@candlelib/flame": "*",
+        "@candlelib/docs": "*",
+        "@candlelib/candle": "*",
+        "@candlelib/uri": "*",
         "@candlelib/wax": "*",
         "@candlelib/wind": "*",
         "@candlelib/wick": "*",
@@ -22,9 +29,12 @@
         "@candlelib/ts": "*",
         "@candlelib/html": "*",
         "@candlelib/hydrocarbon": "*",
-        "@candlelib/lantern": "*"
+        "@candlelib/lantern": "*",
+        "@candlelib/cure": "*"
     },
-    "candle-environment": {},
+    "candle-env": {
+        "repo-root": "github.com/CandleLibrary"
+    },
     "workspaces": [
         "./packages/*"
     ]
