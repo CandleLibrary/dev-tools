@@ -68,3 +68,6 @@ test/**/*temp*/*
 
 # Rust files
 rust/
+
+# Candle lib dev-tools env cache file
+CANDLE_ENV

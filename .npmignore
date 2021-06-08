@@ -7,4 +7,4 @@ tools/
 .git/
 # Source Map Files
 .map
-
+CANDLE_ENV
