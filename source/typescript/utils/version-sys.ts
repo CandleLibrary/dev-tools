@@ -506,7 +506,12 @@ export async function validateEligibility(primary_repo: Dependency) {
                 console.log(`Updating ${dep.name} to v${dep.version_data.new_version}`);
 
                 child_process.execSync(
-                    `git commit -a -m "version ${dep.version_data.new_version}"`,
+                    `git add .`,
+                    { cwd: dep.package._workspace_location }
+                );
+
+                child_process.execSync(
+                    `git commit -m "version ${dep.version_data.new_version}"`,
                     { cwd: dep.package._workspace_location }
                 );
             } else {
