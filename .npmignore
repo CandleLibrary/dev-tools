@@ -6,5 +6,5 @@ workspaces/
 tools/
 .git/
 # Source Map Files
-.map
+*.map
 CANDLE_ENV
