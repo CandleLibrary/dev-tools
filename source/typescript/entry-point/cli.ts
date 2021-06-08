@@ -1,10 +1,7 @@
 #! /bin/node
 
 import {
-    getPackageJsonObject,
-    getProcessArgs,
-    addCLIConfig,
-    processCLIConfig
+    addCLIConfig, getPackageJsonObject, processCLIConfig
 } from "@candlelib/paraffin";
 import URL from "@candlelib/url";
 import { createDepend, getCandlePackage, validateEligibility } from "../utils/version-sys.js";
