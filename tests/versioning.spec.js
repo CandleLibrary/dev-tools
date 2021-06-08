@@ -51,7 +51,7 @@ assert_group("Trace Dependencies", 200000, sequence, () => {
     const package = await getCandlePackage("js");
     const dep = await createDepend(package);
     const result = await getPackageDependencies(dep);
-    g;
+
     assert("Retrieves recursive package dependency list for @candlelib/js", result.size == 5);
     assert("Recursive package dependency list include @candlelib/hydrocarbon", result.has("@candlelib/hydrocarbon") == true);
     assert("Recursive package dependency list include @candlelib/conflagrate", result.has("@candlelib/conflagrate") == true);
@@ -60,12 +60,13 @@ assert_group("Trace Dependencies", 200000, sequence, () => {
     assert("Recursive package dependency list include @candlelib/js", result.has("@candlelib/js") == true);
 });
 
-
+/*
 assert_group("Verify Versioning Eligibility", 200000, sequence, () => {
 
     const repo_name = "html";
 
     const dep = await createDepend(await getCandlePackage(repo_name));
 
-    assert(i, await validateEligibility(dep) == 1);
+    assert(await validateEligibility(dep) == 1);
 });
+*/
