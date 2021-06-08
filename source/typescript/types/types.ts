@@ -1,4 +1,4 @@
-import { PackageJSONData } from "@candlelib/wax";
+import { PackageJSONData } from "@candlelib/paraffin";
 export const enum TestStatus {
     NOT_RUN = 0,
     PASSED = 1,

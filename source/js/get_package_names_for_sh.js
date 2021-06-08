@@ -1,6 +1,6 @@
 #! /usr/bin/node
 
-import { getPackageJsonObject } from "@candlelib/wax";
+import { getPackageJsonObject } from "@candlelib/paraffin";
 
 const print = console.log;
 
