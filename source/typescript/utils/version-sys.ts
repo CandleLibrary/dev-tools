@@ -411,11 +411,11 @@ export async function validateDepend(dep: Dependency) {
         return false;
     }
 
-    // if (!await testPackage(dep.package)) {
-    //     dep.TEST_STATUS = TestStatus.FAILED;
-    //     console.log(`${dep.name} has failed testing`);
-    //     return false;
-    // }
+    if (!await testPackage(dep.package)) {
+        dep.TEST_STATUS = TestStatus.FAILED;
+        console.log(`${dep.name} has failed testing`);
+        return false;
+    }
 
     dep.TEST_STATUS = TestStatus.PASSED;
 
