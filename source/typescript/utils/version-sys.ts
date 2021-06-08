@@ -37,7 +37,7 @@ export async function getWorkspaceEnvironmentVar(): Promise<{
 }> {
     try {
         const env_file = await fsp.readFile(
-            path.resolve(process.cwd(), "CANDLE_ENV"),
+            path.resolve(URL.getEXEURL(import.meta) + "", "../../../../CANDLE_ENV"),
             { encoding: "utf8" }
         );
 

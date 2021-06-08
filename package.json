@@ -30,10 +30,11 @@
         "@candlelib/html": "*",
         "@candlelib/hydrocarbon": "*",
         "@candlelib/lantern": "*",
-        "@candlelib/cure": "*"
+        "@candlelib/cure": "*",
+        "@candlelib/dev-tools": "*"
     },
     "candle-env": {
-        "repo-root": "github.com/CandleLibrary"
+        "repo-root": "ssh://git@github.com/CandleLibrary"
     },
     "workspaces": [
         "./packages/*"

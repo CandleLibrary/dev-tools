@@ -3,10 +3,17 @@
 import {
     addCLIConfig, getPackageJsonObject, processCLIConfig
 } from "@candlelib/paraffin";
-import URL from "@candlelib/uri";
+import URI from "@candlelib/uri";
 import { createDepend, getCandlePackage, validateEligibility } from "../utils/version-sys.js";
+import fs from "fs";
+import { gitClone, gitCheckout } from "../utils/git.js";
 
-const { package: pkg } = await getPackageJsonObject(URL.getEXEURL(import.meta).path);
+
+const fsp = fs.promises;
+
+const { package: pkg, package_dir: dev_dir } = await getPackageJsonObject(URI.getEXEURL(import.meta).path);
+
+await URI.server();
 
 addCLIConfig({
     key: "root",
@@ -63,8 +70,79 @@ packages.`,
     }
 });
 
+
+
+addCLIConfig("install-workspace", {
+    key: "install-workspace",
+    help_brief: ` 
+
+usage: install-workspace <workspace-path>
+
+Create a CandleLibrary workspace at <workspace-path> and
+set the default workspace to this location. Once the workspace
+directory is created all Candle Library repositories are cloned
+into the workspace, and appropriate links are created to resolve 
+module imports.`,
+}).callback = (async (args) => {
+
+    const package_dir = args.trailing_arguments.slice(-1)[0];
+
+    if (package_dir) {
+
+        let uri = new URI(package_dir);
+
+        if (uri.IS_RELATIVE) {
+            uri = URI.resolveRelative(uri);
+        }
+
+        console.log(`Creating new Candle Library workspace at ${uri}`);
+
+        try { fsp.mkdir(uri + "", { recursive: true }); } catch (e) {
+            console.log("Unable to create directory. Exiting");
+            process.exit(-1);
+        }
+
+        console.log("Directory Created. Cloning repos:\n\n");
+
+        const candlelib_repo_names = Object.keys(pkg.devDependencies)
+            .filter(s => s.includes("@candlelib"))
+            .map(s => s.replace("@candlelib/", ""));
+
+        for (const repo of candlelib_repo_names) {
+            if (!gitClone(pkg["candle-env"]["repo-root"] + "/" + repo, uri + ""))
+                console.log(`Error loading ${repo}`);
+            else {
+                console.log("Cloned " + repo + "\n\n");
+                if (!gitCheckout(uri + "/" + repo, "dev"))
+                    console.log("Could not checkout dev branch of " + repo);
+            }
+
+            console.log("-----------\n\n");
+        }
+
+        console.log("Creating links");
+
+        try { await fsp.mkdir(uri + "/node_modules/@candlelib", { recursive: true }); } catch (e) {
+            console.log("Unable to link repositories");
+        }
+
+        for (const repo of candlelib_repo_names) {
+            try {
+                fs.symlinkSync(uri + "/" + repo, uri + "/node_modules/@candlelib/" + repo);
+                console.log(`+ ${repo}`);
+            } catch (e) {
+                //console.log(e);
+                console.log(`- ${repo}`);
+            }
+        }
+
+        await fsp.writeFile(dev_dir + "CANDLE_ENV", `WORKSPACE_DIR=${uri + ""}`);
+    }
+});
+
 try {
     processCLIConfig();
 } catch (e) {
+    console.log(e);
     process.exit(-1);
 }
