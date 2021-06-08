@@ -5,7 +5,7 @@
 // All packages that should be versioned 
 
 import { getPackageJsonObject } from "@candlelib/paraffin";
-import URL from "@candlefw/url";
+import URL from "@candlelib/url";
 import fs from "fs";
 const fsp = fs.promises;
 
@@ -51,7 +51,7 @@ for (const { name } of dirs.filter(d => d.isDirectory())) {
 
 for (const package_name in packages) {
     const pkg = packages[package_name].package;
-    // Update version for all candlefw dependencies
+    // Update version for all CandleLibrary dependencies
     if (pkg.dependencies) {
 
         for (const name in pkg.dependencies) {
