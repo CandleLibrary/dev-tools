@@ -4,6 +4,7 @@ import fs from "fs";
 import path from "path";
 import { gitStatus, gitLog, gitAdd, gitCommit } from "./git.js";
 import { Dependency, Dependencies, CommitLog, TestStatus, DevPkg, Version } from "../types/types";
+import URL from "@candlelib/uri";
 
 const fsp = fs.promises;
 

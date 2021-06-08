@@ -5,7 +5,7 @@
 // All packages that should be versioned 
 
 import { getPackageJsonObject } from "@candlelib/paraffin";
-import URL from "@candlelib/url";
+import URL from "@candlelib/uri";
 import fs from "fs";
 const fsp = fs.promises;
 

@@ -3,7 +3,7 @@
 import {
     addCLIConfig, getPackageJsonObject, processCLIConfig
 } from "@candlelib/paraffin";
-import URL from "@candlelib/url";
+import URL from "@candlelib/uri";
 import { createDepend, getCandlePackage, validateEligibility } from "../utils/version-sys.js";
 
 const { package: pkg } = await getPackageJsonObject(URL.getEXEURL(import.meta).path);
