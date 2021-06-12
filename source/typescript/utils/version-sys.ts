@@ -95,7 +95,6 @@ export async function testPackage(pkg: DevPkg): Promise<boolean> {
 
     const test = pkg.scripts.test;
 
-    console.log({ CWD, test });
     let process = null;
 
     try {
