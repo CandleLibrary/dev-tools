@@ -434,7 +434,7 @@ export async function validateEligibility(primary_repo: Dependency, DRY_RUN: boo
     const dependencies = val.value;
 
 
-    if (CAN_VERSION)
+    if (CAN_VERSION || DRY_RUN)
 
         // All tests passed means we can update the version of any 
         // package that has changed, or has changed dependencies
