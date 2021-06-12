@@ -18,7 +18,7 @@ $ npm install -g @candlelib/dev-tools
 
 ##### install-workspace
 ```bash
-$ candle.lib install-workspace <path-to-workspace-directory>
+$ candle.lib install-workspace [--vscode] <path-to-workspace-directory>
 ```
 
 ##### version

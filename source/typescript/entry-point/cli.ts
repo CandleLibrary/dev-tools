@@ -42,12 +42,6 @@ be specified to cause the version to increment INTO the specified channel.`
 const dry_run = addCLIConfig("version", {
     key: "dryrun",
     REQUIRES_VALUE: false,
-    validate: (val) => {
-        if (!["release", "beta", "experimental"].includes(val)) {
-            return `Expected value that matched one of these options:\n- release\n- beta\n- experimental`;
-        }
-        return "";
-    },
     help_brief: `
 Only report what would be changed, do not make any permanent changes.`
 });
@@ -113,7 +107,12 @@ packages.`,
     }
 });
 
-
+const vscode_workspace = addCLIConfig("install-workspace", {
+    key: "vscode",
+    REQUIRES_VALUE: false,
+    help_brief: `
+Create a Visual Studio Code workspace file at the root of the workspace directory`
+});
 
 addCLIConfig("install-workspace", {
     key: "install-workspace",
@@ -127,6 +126,8 @@ directory is created all Candle Library repositories are cloned
 into the workspace, and appropriate links are created to resolve 
 module imports.`,
 }).callback = (async (args) => {
+
+    const candlelib_repo_names = Object.keys(pkg.devDependencies);
 
     const package_dir = args.trailing_arguments.slice(-1)[0];
 
@@ -147,7 +148,7 @@ module imports.`,
 
         console.log("Directory Created. Cloning repos:\n\n");
 
-        const candlelib_repo_names = Object.keys(pkg.devDependencies)
+        
             .filter(s => s.includes("@candlelib"))
             .map(s => s.replace("@candlelib/", ""));
 
@@ -177,6 +178,34 @@ module imports.`,
                 //console.log(e);
                 console.log(`- ${repo}`);
             }
+        }
+
+        if (vscode_workspace.value) {
+            
+            console.log("Creating VSCode Workspace file");
+
+            const JSON_OBJ = { folders: [] };
+
+            for (const name of candlelib_repo_names) {
+
+                const pkg = await getCandlePackage(name);
+
+                const simple_name = name.replace("@candlelib/", "");
+                if (pkg) {
+
+
+                    JSON_OBJ.folders.push({
+                        name: pkg.description ? simple_name + ": " + pkg.description : simple_name,
+                        path: "./" + simple_name
+                    });
+
+                } else {
+                    console.warn(`Could not open package.json for ${simple_name}`);
+                }
+            }
+
+            await fsp.writeFile(uri + "/candle_lib.code-workspace", JSON.stringify(JSON_OBJ));
+            console.log("VSCode Workspace file written");
         }
 
         await fsp.writeFile(dev_dir + "CANDLE_ENV", `WORKSPACE_DIR=${uri + ""}`);
