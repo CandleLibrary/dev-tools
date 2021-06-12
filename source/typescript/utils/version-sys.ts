@@ -300,7 +300,7 @@ function createISODateString(date: string) {
     return date_string.split("T")[0];
 }
 
-function createISODateTimeString(date: string = undefined) {
+function createISODateTimeString(date: string = new Date + "") {
     const date_obj = new Date(date).toISOString();
     const date_string = date_obj + "";
     return date_string;
