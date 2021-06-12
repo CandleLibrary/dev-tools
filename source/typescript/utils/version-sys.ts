@@ -233,7 +233,7 @@ export async function getNewVersionNumber(dep: Dependency, release_channel = "",
             break;
         } else if (!BREAKING && commit.message.match(/\#?[Bb]reak(ing)?/g)) {
             BREAKING = true;
-        } else if (!FEATURE && commit.message.match(/\#?[Fe]at(ure)?/g)) {
+        } else if (!FEATURE && commit.message.match(/\#?[Ff]eat(ure)?/g)) {
             FEATURE = true;
         }
         commit_drift++;
@@ -293,7 +293,7 @@ export function getChangeLog(dep: Dependency, release_channel = "", RELEASE = fa
     });
 }
 
-function createISODateString(date: string) {
+function createISODateString(date: string = new Date + "") {
     const date_obj = new Date(date).toISOString();
     const date_string = date_obj + "";
     return date_string.split("T")[0];
@@ -353,14 +353,6 @@ function parseVersion(original_version: string) {
 function getCandleLibraryDependNames(pkg: DevPkg) {
     return Object.getOwnPropertyNames(pkg?.dependencies).filter(name => name.includes("@candlelib"));
 }
-
-export async function versionPackage() { }
-
-
-export async function versionSysStart() {
-
-}
-
 
 export async function validateDepend(dep: Dependency) {
 
@@ -463,7 +455,7 @@ export async function validateEligibility(primary_repo: Dependency, DRY_RUN: boo
                     //append to change log
 
                     const
-                        change_log_entry = `## [v${dep.version_data.new_version}] - ${createISODateTimeString()} \n\n` + logs.join("\n\n"),
+                        change_log_entry = `## [v${dep.version_data.new_version}] - ${createISODateString()} \n\n` + logs.join("\n\n"),
 
                         cwd = dep.package._workspace_location,
 
