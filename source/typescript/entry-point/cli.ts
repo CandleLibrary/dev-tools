@@ -21,7 +21,7 @@ addCLIConfig({
 CandleLibrary::Dev-Tools v${pkg.version}`,
 });
 
-
+//Versioning CLI Arguments
 const channel = addCLIConfig("version", {
     key: "channel",
     REQUIRES_VALUE: true,
@@ -39,11 +39,26 @@ is incremented from the most recent version assignment, but a channel can
 be specified to cause the version to increment INTO the specified channel.`
 });
 
+const dry_run = addCLIConfig("version", {
+    key: "dryrun",
+    REQUIRES_VALUE: false,
+    validate: (val) => {
+        if (!["release", "beta", "experimental"].includes(val)) {
+            return `Expected value that matched one of these options:\n- release\n- beta\n- experimental`;
+        }
+        return "";
+    },
+    help_brief: `
+Only report what would be changed, do not make any permanent changes.`
+});
 
-//Versioning CLI Arguments
+
 addCLIConfig("version", {
     key: "version",
     help_brief: ` 
+
+usage: version [candle-lib-package-names]*
+
 Increments the version of the Candle Library package based on the 
 the changes made in the package's git repo since the last version
 and on changes made in any of the dependencies that are also 
@@ -60,13 +75,41 @@ This command must be run in the root directory of a Candle Library
 package, additionally, this command will only work with Candle Library 
 packages.`,
 }).callback = (async (args) => {
-    const { FOUND, package: pkg, package_dir } = await getPackageJsonObject();
 
-    if (FOUND && package_dir == process.cwd() + "/") {
+    const DRY_RUN = !!dry_run.value;
 
-        const pk = await getCandlePackage(pkg.name.replace("@candlelib/", process.cwd() + "/../"));
-        const dep = await createDepend(pk);
-        await validateEligibility(dep);
+    const names = args.trailing_arguments;
+
+    if (DRY_RUN)
+        console.log("\nDry Run: No changes will be recorded.\n");
+
+
+    if (names.length > 0) {
+        for (const name of names) {
+
+            try {
+
+                const dep = await createDepend(name);
+
+                await validateEligibility(dep, DRY_RUN);
+            } catch (e) {
+                console.log(`Could not version package with name ${name}. Is this a Candle Library package?`);
+            }
+        }
+    } else {
+
+        const { FOUND, package: pkg, package_dir } = await getPackageJsonObject();
+
+        if (FOUND && package_dir == process.cwd() + "/") {
+            // Attempt to version the package that is located 
+            // at CWD
+
+            const pk = await getCandlePackage(pkg.name.replace("@candlelib/", process.cwd() + "/../"));
+
+            const dep = await createDepend(pk);
+
+            await validateEligibility(dep, DRY_RUN);
+        }
     }
 });
 
