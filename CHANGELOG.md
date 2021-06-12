@@ -1,3 +1,13 @@
+## [v0.5.1] - 2021-06-12 
+
+- [2021-06-12]
+
+    Changed signal lookup behavior to only look for signals (Feature | Breaking | etc) at start of commit message.
+
+- [2021-06-12]
+
+    Changed date-timestamp for version headers in CHANGELOG updates to just use date portion
+
 ## [v0.5.0] - 2021-06-12T19:48:11.000Z 
 
 - [2021-06-12]
