@@ -275,21 +275,20 @@ export async function getNewVersionNumber(dep: Dependency, release_channel = "",
 
 export function getChangeLog(dep: Dependency, release_channel = "", RELEASE = false) {
 
-    let log = [];
+    let logs = [];
 
     for (const commit of dep.commits) {
         if (commit.message.match(/^version |^\v\d+/g)) {
             break;
-        } else if (commit.message.match(/^\#changelog/g)) {
-            log.push(commit);
+        } else if (commit.message.match(/#changelog\s*$/gm)) {
+            logs.push(commit);
         }
     }
 
-    return log.map(log => {
+    return logs.map(log => {
         const BREAKING = !!log.message.match(/\#?[Bb]reak(ing)?/g);
 
-
-        const message = log.message.split("\n").slice(1).map(m => m.trim()).join(" ").replace(/\#changelog/g, "").trim();
+        const message = log.message.split(/#changelog\s*$/gm)[1].split("\n").slice(1).map(m => m.trim()).join(" ").trim();
 
         return `- [${createISODateString(log.date)}]${BREAKING ? " **breaking change** " : ""}\n\n    ${message}`;
     });
