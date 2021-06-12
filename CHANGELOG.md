@@ -1,3 +1,9 @@
+## [v0.5.0] - 2021-06-12T19:48:11.000Z 
+
+- [2021-06-12]
+
+    Added `--vscode` argument to `install-workspace` sub-command. When this argument is specified, a *.code-workspace file is created at the root of the workspace directory
+
 ## [v0.4.0] - 2021-06-12T18:29:33.000Z 
 
 - [2021-06-12]
