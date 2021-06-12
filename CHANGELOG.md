@@ -1,3 +1,13 @@
+## [v0.4.0] - 2021-06-12T18:29:33.000Z 
+
+- [2021-06-12]
+
+    Changed CHANGELOG.md time stamps to ISO 8601. Added timestamps to version headers.
+
+- [2021-06-12]
+
+    Added information for the `install-workspace` sub-command to the readme.
+
 ## [v0.3.0] 
 
 - [Sat Jun 12 2021]
