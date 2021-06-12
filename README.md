@@ -16,14 +16,29 @@ $ npm install -g @candlelib/dev-tools
 
 ## Usage 
 
+##### install-workspace
+```bash
+$ candle.lib install-workspace <path-to-workspace-directory>
+```
+
 ##### version
 ```bash
 $ candle.lib version [--dryrun] [...<candle-library-repo-name>]
 ```
 
+
+
 ## Commands
 
-### `Version`
+### `install-workspace`
+
+The `candle.dev` `install-workspace` command  can be used to create a workspace directory for all Candle Library 
+repositories on the local system. Once the workspace directory is created all Candle Library repositories
+are cloned into the workspace, and appropriate links are created to resolve module imports. 
+
+Other sub-commands target the repositories within this directory
+
+### `version`
 
 The `candle.dev` `version` command is able to create new version commits for any Candle Library repo 
 (including `@candlelib/dev-tools`). This is achieved by explicitly versioning any `@candlelib/..` package
