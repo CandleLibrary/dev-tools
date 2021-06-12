@@ -7,7 +7,7 @@
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 WK_DIR="$SCRIPT_DIR/../../."
 JS_SCRIPTS_DIR="$WK_DIR/source/js"
-WORKSPACE_DIR="/home/anthony/candle-temp"
+WORKSPACE_DIR=$1
 
 ##############################################################
 #
