@@ -36,6 +36,8 @@ export async function getWorkspaceEnvironmentVar(): Promise<{
     [env_var: string]: string;
 }> {
     try {
+        await URL.server();
+
         const env_file = await fsp.readFile(
             path.resolve(URL.getEXEURL(import.meta) + "", "../../../../CANDLE_ENV"),
             { encoding: "utf8" }
@@ -93,6 +95,7 @@ export async function testPackage(pkg: DevPkg): Promise<boolean> {
 
     const test = pkg.scripts.test;
 
+    console.log({ CWD, test });
     let process = null;
 
     try {
@@ -103,7 +106,9 @@ export async function testPackage(pkg: DevPkg): Promise<boolean> {
 
         return true;
     } catch (e) {
-        console.error(e);
+        console.error(e.stack);
+        console.log(e.stdout.toString());
+        console.error(e.stderr.toString());
     }
 
     return false;
@@ -275,7 +280,7 @@ export function getChangeLog(dep: Dependency, release_channel = "", RELEASE = fa
     for (const commit of dep.commits) {
         if (commit.message.match(/^version |^\v\d+/g)) {
             break;
-        } else if (commit.message.match(/\#?changelog?/g)) {
+        } else if (commit.message.match(/\#?\s*changelog?/g)) {
             log.push(commit);
         }
     }
@@ -284,7 +289,7 @@ export function getChangeLog(dep: Dependency, release_channel = "", RELEASE = fa
         const BREAKING = !!log.message.match(/\#?[Bb]reak(ing)?/g);
 
 
-        const message = log.message.split("\n").slice(1).map(m => m.trim()).join(" ").replace(/\#?changelog?/g, "").trim();
+        const message = log.message.split("\n").slice(1).map(m => m.trim()).join(" ").replace(/\#?\s*changelog?/g, "").trim();
         const date = new Date(log.date).toDateString();
 
         return `- [${date}]${BREAKING ? " **breaking change** " : ""}\n\n    ${message}`;
@@ -379,7 +384,7 @@ export async function validateDepend(dep: Dependency) {
     return true;
 }
 
-export async function validateEligibility(primary_repo: Dependency) {
+export async function validateEligibility(primary_repo: Dependency, DRY_RUN: boolean = false) {
 
     //Test each dependency to ensure full compatibility
 
@@ -441,6 +446,8 @@ export async function validateEligibility(primary_repo: Dependency) {
 
             if (dep.version_data.NEW_VERSION_REQUIRED) {
 
+                log(`\nUpdating ${dep.name}\n`);
+
                 const logs = getChangeLog(dep);
 
                 if (logs.length > 0) {
@@ -459,20 +466,35 @@ export async function validateEligibility(primary_repo: Dependency) {
                         file = await fsp.readFile(change_log_path, { encoding: "utf8" });
                     } catch (e) { }
 
-                    await fsp.writeFile(change_log_path, change_log_entry + "\n\n" + file);
+                    if (!file) {
+                        file = `## [v${dep.version_data.latest_version}] \n\n- No changes recorded prior to this version.`;
+                    }
+
+                    log(`Adding ${logs.length} new CHANGELOG entr${logs.length > 1 ? "ies" : "y"}:\n`);
+
+                    log(logs.join("\n\n"), "\n");
+
+                    if (!DRY_RUN)
+
+                        await fsp.writeFile(change_log_path, change_log_entry + "\n\n" + file);
                 }
 
                 pkg.version = dep.version_data.new_version;
 
                 const json = JSON.stringify(Object.assign({}, pkg, { _workspace_location: undefined }), null, 4);
 
-                await fsp.writeFile(path.resolve(pkg._workspace_location, "package.json"), json);
+                if (!DRY_RUN)
+                    await fsp.writeFile(path.resolve(pkg._workspace_location, "package.json"), json);
 
-                log(`Updating ${dep.name} to v${dep.version_data.new_version}`);
+                log(`Updating package.json to v${dep.version_data.new_version}`);
 
-                gitAdd(dep.package._workspace_location);
+                if (!DRY_RUN)
+                    gitAdd(dep.package._workspace_location);
 
-                gitCommit(dep.package._workspace_location, `version ${dep.version_data.new_version}`);
+                log(`Creating commit for ${dep.name}@${dep.version_data.new_version}`);
+
+                if (!DRY_RUN)
+                    gitCommit(dep.package._workspace_location, `version ${dep.version_data.new_version}`);
 
             } else
 
@@ -481,6 +503,8 @@ export async function validateEligibility(primary_repo: Dependency) {
         }
 
     else log(`Could not version ${primary_repo.name} due to the proceeding error(s).`);
+
+    log("\n");
 
 }
 
