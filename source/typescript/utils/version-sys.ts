@@ -280,7 +280,7 @@ export function getChangeLog(dep: Dependency, release_channel = "", RELEASE = fa
     for (const commit of dep.commits) {
         if (commit.message.match(/^version |^\v\d+/g)) {
             break;
-        } else if (commit.message.match(/\#?\s*changelog?/g)) {
+        } else if (commit.message.match(/^\#changelog/g)) {
             log.push(commit);
         }
     }
@@ -289,11 +289,22 @@ export function getChangeLog(dep: Dependency, release_channel = "", RELEASE = fa
         const BREAKING = !!log.message.match(/\#?[Bb]reak(ing)?/g);
 
 
-        const message = log.message.split("\n").slice(1).map(m => m.trim()).join(" ").replace(/\#?\s*changelog?/g, "").trim();
-        const date = new Date(log.date).toDateString();
+        const message = log.message.split("\n").slice(1).map(m => m.trim()).join(" ").replace(/\#changelog/g, "").trim();
 
-        return `- [${date}]${BREAKING ? " **breaking change** " : ""}\n\n    ${message}`;
+        return `- [${createISODateString(log.date)}]${BREAKING ? " **breaking change** " : ""}\n\n    ${message}`;
     });
+}
+
+function createISODateString(date: string) {
+    const date_obj = new Date(date).toISOString();
+    const date_string = date_obj + "";
+    return date_string.split("T")[0];
+}
+
+function createISODateTimeString(date: string = undefined) {
+    const date_obj = new Date(date).toISOString();
+    const date_string = date_obj + "";
+    return date_string;
 }
 
 function getLatestVersion(...versions: Version[]) {
@@ -454,7 +465,7 @@ export async function validateEligibility(primary_repo: Dependency, DRY_RUN: boo
                     //append to change log
 
                     const
-                        change_log_entry = `## [v${dep.version_data.new_version}] \n\n` + logs.join("\n\n"),
+                        change_log_entry = `## [v${dep.version_data.new_version}] - ${createISODateTimeString()} \n\n` + logs.join("\n\n"),
 
                         cwd = dep.package._workspace_location,
 
