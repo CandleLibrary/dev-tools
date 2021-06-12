@@ -231,9 +231,9 @@ export async function getNewVersionNumber(dep: Dependency, release_channel = "",
         if (commit.message.match(/^version |^\v\d+/g)) {
             git_version_string = commit.message.replace("version ", "").trim();
             break;
-        } else if (!BREAKING && commit.message.match(/\#?[Bb]reak(ing)?/g)) {
+        } else if (!BREAKING && commit.message.match(/^\#?[Bb]reak(ing)?/g)) {
             BREAKING = true;
-        } else if (!FEATURE && commit.message.match(/\#?[Ff]eat(ure)?/g)) {
+        } else if (!FEATURE && commit.message.match(/^\#?[Ff]eat(ure)?/g)) {
             FEATURE = true;
         }
         commit_drift++;
@@ -285,7 +285,7 @@ export function getChangeLog(dep: Dependency, release_channel = "", RELEASE = fa
     }
 
     return logs.map(log => {
-        const BREAKING = !!log.message.match(/\#?[Bb]reak(ing)?/g);
+        const BREAKING = !!log.message.match(/^\#?[Bb]reak(ing)?/g);
 
         const message = log.message.split(/#changelog\s*$/gm)[1].split("\n").slice(1).map(m => m.trim()).join(" ").trim();
 
