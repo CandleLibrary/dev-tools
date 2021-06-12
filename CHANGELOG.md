@@ -6,7 +6,7 @@
 
 - [Sat Jun 12 2021]
 
-    Added default entry for new files
+    Added default change log entry for new CHANGELOG.md files
 
 - [Tue Jun 08 2021]
 
