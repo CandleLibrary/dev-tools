@@ -1,3 +1,17 @@
+## [v0.3.0] 
+
+- [Sat Jun 12 2021]
+
+    Added dryrun argument for version command
+
+- [Sat Jun 12 2021]
+
+    Added default entry for new files
+
+- [Tue Jun 08 2021]
+
+    Moved the workspace installation logic to JavaScript and added sub-command to CLI to install workspace in directory specified in command line arg.
+
 ## [v0.2.0] 
 
 - [Tue Jun 08 2021]
