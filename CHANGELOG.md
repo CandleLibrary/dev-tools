@@ -1,3 +1,9 @@
+## [v0.6.0] - 2021-06-17 
+
+- [2021-06-17]
+
+    Added version git tags to version sub-command. Also added publish.bounty files to packages that have been sucessfully versioned. When executed, these script files will automatically publish the package to NPM and then self destruct, allowing them to server as markers for packages that have yet to be published.  Added publish sub-command which utilizes the publish.bounty scripts to publish any packages that are pending.
+
 ## [v0.5.1] - 2021-06-12 
 
 - [2021-06-12]

@@ -1,7 +1,7 @@
 {
     "name": "@candlelib/dev-tools",
     "type": "module",
-    "version": "0.5.1",
+    "version": "0.6.0",
     "description": "Development Tools for Candle Library",
     "main": "./build/library/cli.js",
     "license": "MIT",
