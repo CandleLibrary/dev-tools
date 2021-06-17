@@ -181,7 +181,7 @@ module imports.`,
         }
 
         if (vscode_workspace.value) {
-            
+
             console.log("Creating VSCode Workspace file");
 
             const JSON_OBJ = { folders: [] };
@@ -212,6 +212,40 @@ module imports.`,
     }
 });
 
+
+
+addCLIConfig("publish", {
+    key: "publish",
+    help_brief: ` 
+
+usage: publish
+
+Publishes any Candle Library package that has a publish.bounty file.`,
+}).callback = (async (args) => {
+
+    const candlelib_repo_names = Object.keys(pkg.devDependencies);
+
+    const cp = (await import("child_process")).default;
+
+    for (const name of candlelib_repo_names) {
+
+        const dep = await getCandlePackage(name);
+
+        if (dep) {
+
+
+            try {
+
+                cp.execFileSync(dep._workspace_location + "/publish.bounty", {
+                    cwd: dep._workspace_location,
+                });
+                console.log(`Published ${name}`);
+            } catch (e) {
+                console.log(`No publish bounty for ${name}`);
+            }
+        }
+    }
+});
 try {
     processCLIConfig();
 } catch (e) {

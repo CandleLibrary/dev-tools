@@ -38,14 +38,29 @@ export function gitAdd(CWD: string, paths: string = "."): boolean {
 }
 
 
-export function gitCommit(CWD: string, commit_message = ""): boolean {
+export function gitCommit(CWD: string, commit_message: string = ""): boolean {
     if (!commit_message)
         return false;
 
     try {
-
         child_process.execSync(
             `git commit -m "${commit_message}"`,
+            { cwd: CWD }
+        );
+        return true;
+    } catch (e) {
+        console.error(e.toString());
+        return false;
+    }
+}
+
+export function gitTag(CWD: string, tag_name: string = "", tag_message: string = ""): boolean {
+    if (!tag_name)
+        return false;
+
+    try {
+        child_process.execSync(
+            `git tag ${tag_message ? `-m "${tag_message}" ` : ""}${tag_name}`,
             { cwd: CWD }
         );
         return true;

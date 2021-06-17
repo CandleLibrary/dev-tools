@@ -2,7 +2,7 @@ import { getPackageJsonObject, xtColor, col_css, xtReset, xtF } from "@candlelib
 import child_process from "child_process";
 import fs from "fs";
 import path from "path";
-import { gitStatus, gitLog, gitAdd, gitCommit } from "./git.js";
+import { gitStatus, gitLog, gitAdd, gitCommit, gitTag } from "./git.js";
 import { Dependency, Dependencies, CommitLog, TestStatus, DevPkg, Version } from "../types/types";
 import URL from "@candlelib/uri";
 
@@ -106,8 +106,8 @@ export async function testPackage(pkg: DevPkg): Promise<boolean> {
         return true;
     } catch (e) {
         console.error(e.stack);
-        console.log(e.stdout.toString());
-        console.error(e.stderr.toString());
+        //console.log(e.stdout.toString());
+        //console.error(e.stderr.toString());
     }
 
     return false;
@@ -139,6 +139,8 @@ export async function* getPackageDependenciesGen(dep: Dependency, dependencies: 
                 const dep_pkg = await getCandlePackage(dependent_name);
 
                 if (dep_pkg) {
+
+                    log(`Get dependency ${dependent_name}`);
 
                     const dep = await createDepend(dep_pkg);
 
@@ -262,6 +264,8 @@ export async function getNewVersionNumber(dep: Dependency, release_channel = "",
 
     new_version.channel = release_channel;
 
+    log(`Determined latest version for ${dep.name}: ${versionToString(latest_version)}`);
+
     return {
         new_version: versionToString(new_version),
         git_version: versionToString(git_version),
@@ -283,6 +287,8 @@ export function getChangeLog(dep: Dependency, release_channel = "", RELEASE = fa
             logs.push(commit);
         }
     }
+
+    log(`Building change log for ${dep.name}`);
 
     return logs.map(log => {
         const BREAKING = !!log.message.match(/^\#?[Bb]reak(ing)?/g);
@@ -370,6 +376,7 @@ export async function validateDepend(dep: Dependency) {
 
         return false;
     }
+    log(`Running tests for ${dep.name}`);
 
     if (!await testPackage(dep.package)) {
 
@@ -379,6 +386,8 @@ export async function validateDepend(dep: Dependency) {
 
         return false;
     }
+
+    log(`${dep.name} tests completed.`);
 
     dep.TEST_STATUS = TestStatus.PASSED;
 
@@ -496,6 +505,17 @@ export async function validateEligibility(primary_repo: Dependency, DRY_RUN: boo
 
                 if (!DRY_RUN)
                     gitCommit(dep.package._workspace_location, `version ${dep.version_data.new_version}`);
+
+                log(`Creating tag for ${dep.name}@${dep.version_data.new_version}`);
+                if (!DRY_RUN)
+                    gitTag(dep.package._workspace_location, `v${dep.version_data.new_version}`);
+
+                log(`Creating publish bounty for ${dep.name}@${dep.version_data.new_version}`);
+                if (!DRY_RUN) {
+                    await fsp.writeFile(path.resolve(pkg._workspace_location, "publish.bounty"), `#! /bin/bash \n yarn publish --new-version ${dep.version_data.new_version} \n rm ./publish.bounty`, {
+                        mode: 0o777
+                    });
+                }
 
             } else
 
