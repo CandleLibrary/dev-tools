@@ -52,7 +52,7 @@ assert_group("Trace Dependencies", 200000, sequence, () => {
     const dep = await createDepend(package);
     const result = await getPackageDependencies(dep);
 
-    assert("Retrieves recursive package dependency list for @candlelib/js", result.size == 5);
+    assert("Retrieves recursive package dependency list for @candlelib/js", result.size == 11);
     assert("Recursive package dependency list include @candlelib/hydrocarbon", result.has("@candlelib/hydrocarbon") == true);
     assert("Recursive package dependency list include @candlelib/conflagrate", result.has("@candlelib/conflagrate") == true);
     assert("Recursive package dependency list include @candlelib/uri", result.has("@candlelib/uri") == true);
