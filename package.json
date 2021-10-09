@@ -6,7 +6,7 @@
     "main": "./build/library/cli.js",
     "license": "MIT",
     "bin": {
-        "candle.dev": "./build/library/entry-point/cli.js"
+        "candle.dev": "./index.js"
     },
     "scripts": {
         "test": "candle.cure ./tests/",
@@ -14,7 +14,8 @@
     },
     "dependencies": {
         "@candlelib/uri": "*",
-        "@candlelib/paraffin": "*"
+        "@candlelib/paraffin": "*",
+        "@candlelib/log": "*"
     },
     "devDependencies": {
         "@candlelib/flame": "*",

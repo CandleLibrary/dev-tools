@@ -4,8 +4,11 @@ import {
     addCLIConfig, getPackageJsonObject, processCLIConfig
 } from "@candlelib/paraffin";
 import URI from "@candlelib/uri";
+import { Logger } from "@candlelib/log";
 import { createDepend, getCandlePackage, validateEligibility } from "../utils/version-sys.js";
 import fs from "fs";
+const dev_logger = Logger.get("dev-tools").activate();
+
 import { gitClone, gitCheckout } from "../utils/git.js";
 
 
@@ -75,7 +78,7 @@ packages.`,
     const names = args.trailing_arguments;
 
     if (DRY_RUN)
-        console.log("\nDry Run: No changes will be recorded.\n");
+        dev_logger.log("\nDry Run: No changes will be recorded.\n");
 
 
     if (names.length > 0) {
@@ -87,7 +90,7 @@ packages.`,
 
                 await validateEligibility(dep, DRY_RUN);
             } catch (e) {
-                console.log(`Could not version package with name ${name}. Is this a Candle Library package?`);
+                dev_logger.log(`Could not version package with name ${name}. Is this a Candle Library package?`);
             }
         }
     } else {
@@ -139,50 +142,50 @@ module imports.`,
             uri = URI.resolveRelative(uri);
         }
 
-        console.log(`Creating new Candle Library workspace at ${uri}`);
+        dev_logger.log(`Creating new Candle Library workspace at ${uri}`);
 
         try { fsp.mkdir(uri + "", { recursive: true }); } catch (e) {
-            console.log("Unable to create directory. Exiting");
+            dev_logger.log("Unable to create directory. Exiting");
             process.exit(-1);
         }
 
-        console.log("Directory Created. Cloning repos:\n\n");
+        dev_logger.log("Directory Created. Cloning repos:\n\n");
 
-        
-            .filter(s => s.includes("@candlelib"))
-            .map(s => s.replace("@candlelib/", ""));
 
+        // .filter(s => s.includes("@candlelib"))
+        // .map(s => s.replace("@candlelib/", ""));
+        //
         for (const repo of candlelib_repo_names) {
             if (!gitClone(pkg["candle-env"]["repo-root"] + "/" + repo, uri + ""))
-                console.log(`Error loading ${repo}`);
+                dev_logger.log(`Error loading ${repo}`);
             else {
-                console.log("Cloned " + repo + "\n\n");
+                dev_logger.log("Cloned " + repo + "\n\n");
                 if (!gitCheckout(uri + "/" + repo, "dev"))
-                    console.log("Could not checkout dev branch of " + repo);
+                    dev_logger.log("Could not checkout dev branch of " + repo);
             }
 
-            console.log("-----------\n\n");
+            dev_logger.log("-----------\n\n");
         }
 
-        console.log("Creating links");
+        dev_logger.log("Creating links");
 
         try { await fsp.mkdir(uri + "/node_modules/@candlelib", { recursive: true }); } catch (e) {
-            console.log("Unable to link repositories");
+            dev_logger.log("Unable to link repositories");
         }
 
         for (const repo of candlelib_repo_names) {
             try {
                 fs.symlinkSync(uri + "/" + repo, uri + "/node_modules/@candlelib/" + repo);
-                console.log(`+ ${repo}`);
+                dev_logger.log(`+ ${repo}`);
             } catch (e) {
-                //console.log(e);
-                console.log(`- ${repo}`);
+                //dev_logger.log(e);
+                dev_logger.log(`- ${repo}`);
             }
         }
 
         if (vscode_workspace.value) {
 
-            console.log("Creating VSCode Workspace file");
+            dev_logger.log("Creating VSCode Workspace file");
 
             const JSON_OBJ = { folders: [] };
 
@@ -205,7 +208,7 @@ module imports.`,
             }
 
             await fsp.writeFile(uri + "/candle_lib.code-workspace", JSON.stringify(JSON_OBJ));
-            console.log("VSCode Workspace file written");
+            dev_logger.log("VSCode Workspace file written");
         }
 
         await fsp.writeFile(dev_dir + "CANDLE_ENV", `WORKSPACE_DIR=${uri + ""}`);
@@ -239,9 +242,9 @@ Publishes any Candle Library package that has a publish.bounty file.`,
                 cp.execFileSync(dep._workspace_location + "/publish.bounty", {
                     cwd: dep._workspace_location,
                 });
-                console.log(`Published ${name}`);
+                dev_logger.log(`Published ${name}`);
             } catch (e) {
-                console.log(`No publish bounty for ${name}`);
+                dev_logger.log(`No publish bounty for ${name}`);
             }
         }
     }
@@ -249,6 +252,6 @@ Publishes any Candle Library package that has a publish.bounty file.`,
 try {
     processCLIConfig();
 } catch (e) {
-    console.log(e);
+    dev_logger.log(e);
     process.exit(-1);
 }

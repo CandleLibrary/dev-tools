@@ -5,6 +5,8 @@ import path from "path";
 import { gitStatus, gitLog, gitAdd, gitCommit, gitTag } from "./git.js";
 import { Dependency, Dependencies, CommitLog, TestStatus, DevPkg, Version } from "../types/types";
 import URL from "@candlelib/uri";
+import { Logger } from "@candlelib/log";
+const dev_logger = Logger.get("dev-tools").activate();
 
 const fsp = fs.promises;
 
@@ -48,7 +50,7 @@ export async function getWorkspaceEnvironmentVar(): Promise<{
         return Object.fromEntries(env_file.split("\n").filter(n => !!n).map(str => str.split("=", 2)));
 
     } catch (e) {
-        console.error(e);
+        dev_logger.error(e);
         return null;
     }
 }
@@ -105,9 +107,8 @@ export async function testPackage(pkg: DevPkg): Promise<boolean> {
 
         return true;
     } catch (e) {
-        console.error(e.stack);
-        //console.log(e.stdout.toString());
-        //console.error(e.stderr.toString());
+        dev_logger.get(`testing [${pkg.name}]`).error(e.stack);
+        dev_logger.log(e.stdout.toString());;
     }
 
     return false;
@@ -140,7 +141,7 @@ export async function* getPackageDependenciesGen(dep: Dependency, dependencies: 
 
                 if (dep_pkg) {
 
-                    log(`Get dependency ${dependent_name}`);
+                    dev_logger.log(`Get dependency ${dependent_name}`);
 
                     const dep = await createDepend(dep_pkg);
 
@@ -264,7 +265,10 @@ export async function getNewVersionNumber(dep: Dependency, release_channel = "",
 
     new_version.channel = release_channel;
 
-    log(`Determined latest version for ${dep.name}: ${versionToString(latest_version)}`);
+    dev_logger.log(`Determined latest version for ${dep.name}: ${versionToString(latest_version)} `);
+
+    if (commit_drift > 0)
+        dev_logger.log(`Determined next version for ${dep.name}: ${versionToString(new_version)} `);
 
     return {
         new_version: versionToString(new_version),
@@ -283,17 +287,17 @@ export function getChangeLog(dep: Dependency, release_channel = "", RELEASE = fa
     for (const commit of dep.commits) {
         if (commit.message.match(/^version |^\v\d+/g)) {
             break;
-        } else if (commit.message.match(/#changelog\s*$/gm)) {
+        } else if (commit.message.match(/#changelog\s*$/gmi)) {
             logs.push(commit);
         }
     }
 
-    log(`Building change log for ${dep.name}`);
+    dev_logger.log(`Building change log for ${dep.name}`);
 
     return logs.map(log => {
         const BREAKING = !!log.message.match(/^\#?[Bb]reak(ing)?/g);
 
-        const message = log.message.split(/#changelog\s*$/gm)[1].split("\n").slice(1).map(m => m.trim()).join(" ").trim();
+        const message = log.message.split(/#changelog\s*$/gmi)[1].split("\n").slice(1).map(m => m.trim()).join(" ").trim();
 
         return `- [${createISODateString(log.date)}]${BREAKING ? " **breaking change** " : ""}\n\n    ${message}`;
     });
@@ -372,22 +376,22 @@ export async function validateDepend(dep: Dependency) {
                     .replace(/^\?\?/g, xtF(xtColor(col_css.green)) + "??" + xtF(xtReset))
             ).join("\n");
 
-        log(`\n${dep.name} has uncommitted changes and cannot be versioned: \n${status}`);
+        dev_logger.warn(`${dep.name} has uncommitted changes and cannot be versioned: \n${status}`);
 
         return false;
     }
-    log(`Running tests for ${dep.name}`);
+    dev_logger.log(`Running tests for ${dep.name}`);
 
     if (!await testPackage(dep.package)) {
 
         dep.TEST_STATUS = TestStatus.FAILED;
 
-        log(`${dep.name} has failed testing`);
+        dev_logger.warn(`${dep.name} has failed testing`);
 
         return false;
     }
 
-    log(`${dep.name} tests completed.`);
+    dev_logger.log(`${dep.name} tests completed.`);
 
     dep.TEST_STATUS = TestStatus.PASSED;
 
@@ -410,36 +414,51 @@ export async function validateEligibility(primary_repo: Dependency, DRY_RUN: boo
 
         if (!(await validateDepend(dep)))
             CAN_VERSION = false;
-        else {
-            for (const key in dep.package?.dependencies ?? {})
-                if (dependencies.has(key)) {
-                    const depend = dependencies.get(key);
-
-                    if (
-                        depend.version_data.NEW_VERSION_REQUIRED
-                        &&
-                        !dep.version_data.NEW_VERSION_REQUIRED
-                    ) {
-                        dep.version_data.NEW_VERSION_REQUIRED = true;
-                        const version = parseVersion(dep.version_data.latest_version);
-                        version.sym[2]++;
-                        dep.version_data.new_version = versionToString(version);
-                    }
-                }
-        }
 
         val = await iter.next();
     }
 
     const dependencies = val.value;
 
-
-    if (CAN_VERSION || DRY_RUN)
+    if (CAN_VERSION || DRY_RUN) {
 
         // All tests passed means we can update the version of any 
         // package that has changed, or has changed dependencies
+        let CHANGES = true;
+
+        // This loop ensures all packages get updated with correct 
+        // dependency versions, even if there are  cycles in the 
+        // dependency graph.
+        while (CHANGES) {
+            CHANGES = false;
+            for (const dep of dependencies.values()) {
+                for (const key in dep.package?.dependencies ?? {}) {
+                    if (dependencies.has(key)) {
+                        const val = parseVersion(dep.package.dependencies[key]);
+                        const depend = dependencies.get(key);
+
+                        if (
+                            (depend.version_data.NEW_VERSION_REQUIRED
+                                &&
+                                !dep.version_data.NEW_VERSION_REQUIRED)
+                            ||
+                            depend.version_data.latest_version
+                            != versionToString(val)
+                        ) {
+                            dep.version_data.NEW_VERSION_REQUIRED = true;
+                            const version = parseVersion(dep.version_data.latest_version);
+                            version.sym[2]++;
+                            dep.version_data.new_version = versionToString(version);
+                            dep.package.dependencies[key] = depend.version_data.latest_version;
+                            CHANGES = true;
+                        }
+                    }
+                }
+            }
+        }
 
         for (const dep of dependencies.values()) {
+
 
             // Update the package version
             const pkg = dep.package;
@@ -456,7 +475,7 @@ export async function validateEligibility(primary_repo: Dependency, DRY_RUN: boo
 
             if (dep.version_data.NEW_VERSION_REQUIRED) {
 
-                log(`\nUpdating ${dep.name}\n`);
+                dev_logger.log(`Updating ${dep.name}`);
 
                 const logs = getChangeLog(dep);
 
@@ -480,9 +499,10 @@ export async function validateEligibility(primary_repo: Dependency, DRY_RUN: boo
                         file = `## [v${dep.version_data.latest_version}] \n\n- No changes recorded prior to this version.`;
                     }
 
-                    log(`Adding ${logs.length} new CHANGELOG entr${logs.length > 1 ? "ies" : "y"}:\n`);
+                    dev_logger.log(`Adding ${logs.length} new CHANGELOG entr${logs.length > 1 ? "ies" : "y"}:\n`);
 
-                    log(logs.join("\n\n"), "\n");
+                    for (const log of logs)
+                        dev_logger.log(log);
 
                     if (!DRY_RUN)
 
@@ -496,21 +516,21 @@ export async function validateEligibility(primary_repo: Dependency, DRY_RUN: boo
                 if (!DRY_RUN)
                     await fsp.writeFile(path.resolve(pkg._workspace_location, "package.json"), json);
 
-                log(`Updating package.json to v${dep.version_data.new_version}`);
+                dev_logger.log(`Updating package.json to v${dep.version_data.new_version}`);
 
                 if (!DRY_RUN)
                     gitAdd(dep.package._workspace_location);
 
-                log(`Creating commit for ${dep.name}@${dep.version_data.new_version}`);
+                dev_logger.log(`Creating commit for ${dep.name}@${dep.version_data.new_version}`);
 
                 if (!DRY_RUN)
                     gitCommit(dep.package._workspace_location, `version ${dep.version_data.new_version}`);
 
-                log(`Creating tag for ${dep.name}@${dep.version_data.new_version}`);
+                dev_logger.log(`Creating tag for ${dep.name}@${dep.version_data.new_version}`);
                 if (!DRY_RUN)
                     gitTag(dep.package._workspace_location, `v${dep.version_data.new_version}`);
 
-                log(`Creating publish bounty for ${dep.name}@${dep.version_data.new_version}`);
+                dev_logger.log(`Creating publish bounty for ${dep.name}@${dep.version_data.new_version}`);
                 if (!DRY_RUN) {
                     await fsp.writeFile(path.resolve(pkg._workspace_location, "publish.bounty"), `#! /bin/bash \n yarn publish --new-version ${dep.version_data.new_version} \n rm ./publish.bounty`, {
                         mode: 0o777
@@ -519,16 +539,11 @@ export async function validateEligibility(primary_repo: Dependency, DRY_RUN: boo
 
             } else
 
-                log(`No version change required for ${dep.name} at v${dep.version_data.latest_version}`);
+                dev_logger.log(`No version change required for ${dep.name} at v${dep.version_data.latest_version}`);
 
         }
+    }
 
-    else log(`Could not version ${primary_repo.name} due to the proceeding error(s).`);
+    else dev_logger.warn(`Could not version ${primary_repo.name} due to the proceeding error(s).`);
 
-    log("\n");
-
-}
-
-function log(...msgs: any[]): void {
-    console.log(...msgs);
 }
