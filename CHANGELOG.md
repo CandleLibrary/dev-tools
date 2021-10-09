@@ -1,3 +1,13 @@
+## [v0.6.1] - 2021-10-09 
+
+- [2021-10-09]
+
+    Made `#changelog` header search case-insensitive.  Added @candlelib/log for improved CLI messages.
+
+- [2021-06-17]
+
+    Added more verbose terminal output when versioning
+
 ## [v0.6.0] - 2021-06-17 
 
 - [2021-06-17]
