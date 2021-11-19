@@ -1,7 +1,7 @@
 {
     "name": "@candlelib/dev-tools",
     "type": "module",
-    "version": "0.6.2",
+    "version": "0.6.3",
     "description": "Development Tools for Candle Library",
     "main": "./build/index.js",
     "license": "MIT",
@@ -13,9 +13,9 @@
         "install_dev_workspace": "./scripts/bash/install.sh"
     },
     "dependencies": {
-        "@candlelib/uri": "*",
-        "@candlelib/paraffin": "*",
         "@candlelib/log": "*",
+        "@candlelib/paraffin": "*",
+        "@candlelib/uri": "*",
         "@types/node": "*"
     },
     "candle-lib-modules": {
