@@ -5,7 +5,7 @@ import {
 } from "@candlelib/paraffin";
 import URI from "@candlelib/uri";
 import { Logger } from "@candlelib/log";
-import { createDepend, getCandlePackage, validateEligibility } from "../utils/version-sys.js";
+import { createDepend, getCandlePackage, validateEligibility, validateEligibilityPackages, getCandleLibraryDependNames } from "../utils/version-sys.js";
 import fs from "fs";
 const dev_logger = Logger.get("dev-tools").activate();
 
@@ -20,14 +20,14 @@ await URI.server();
 
 addCLIConfig({
     key: "root",
-    help_brief: ` 
-CandleLibrary::Dev-Tools v${pkg.version}`,
+    help_brief: `CandleLibrary::Dev-Tools v${pkg.version}`,
 });
 
 //Versioning CLI Arguments
 const channel = addCLIConfig("version", {
     key: "channel",
-    REQUIRES_VALUE: true,
+    REQUIRES_VALUE: false,
+    accepted_values: ["release", "beta", "experimental"],
     validate: (val) => {
         if (!["release", "beta", "experimental"].includes(val)) {
             return `Expected value that matched one of these options:\n- release\n- beta\n- experimental`;
@@ -35,7 +35,6 @@ const channel = addCLIConfig("version", {
         return "";
     },
     help_brief: `
-Accepted values: release | beta | experimental
 
 The release channel the version should increment to. By default the version 
 is incremented from the most recent version assignment, but a channel can 
@@ -71,7 +70,7 @@ have failing tests.
 This command must be run in the root directory of a Candle Library
 package, additionally, this command will only work with Candle Library 
 packages.`,
-}).callback = (async (args) => {
+}).callback = (async (arg, args) => {
 
     const DRY_RUN = !!dry_run.value;
 
@@ -82,17 +81,21 @@ packages.`,
 
 
     if (names.length > 0) {
-        for (const name of names) {
+        const packages = await Promise.all(names.map(name => createDepend("@candlelib/" + name)));
 
-            try {
-
-                const dep = await createDepend(name);
-
-                await validateEligibility(dep, DRY_RUN);
-            } catch (e) {
-                dev_logger.log(`Could not version package with name ${name}. Is this a Candle Library package?`);
-            }
-        }
+        await validateEligibilityPackages(packages.filter(p => !!p), getCandleLibraryDependNames, DRY_RUN);
+        /*  for (const name of names) {
+ 
+ 
+             try {
+ 
+                 const dep = await ;
+ 
+                 await validateEligibility(dep, getCandleLibraryDependNames, DRY_RUN);
+             } catch (e) {
+                 dev_logger.log(`Could not version package with name ${name}. Is this a Candle Library package?`);
+             }
+         } */
     } else {
 
         const { FOUND, package: pkg, package_dir } = await getPackageJsonObject();
@@ -128,7 +131,7 @@ set the default workspace to this location. Once the workspace
 directory is created all Candle Library repositories are cloned
 into the workspace, and appropriate links are created to resolve 
 module imports.`,
-}).callback = (async (args) => {
+}).callback = (async (arg, args) => {
 
     const candlelib_repo_names = Object.keys(pkg.devDependencies);
 
@@ -224,10 +227,9 @@ addCLIConfig("publish", {
 usage: publish
 
 Publishes any Candle Library package that has a publish.bounty file.`,
-}).callback = (async (args) => {
+}).callback = (async (arg, args) => {
 
-    const candlelib_repo_names = Object.keys(pkg.devDependencies);
-
+    const candlelib_repo_names = Object.keys(pkg["candle-lib-modules"]);
     const cp = (await import("child_process")).default;
 
     for (const name of candlelib_repo_names) {
@@ -250,7 +252,7 @@ Publishes any Candle Library package that has a publish.bounty file.`,
     }
 });
 try {
-    processCLIConfig();
+    processCLIConfig("candle.dev");
 } catch (e) {
     dev_logger.log(e);
     process.exit(-1);

@@ -31,6 +31,12 @@ export interface Dependency {
      */
     DIRTY_REPO: boolean;
 
+    /**
+     * True if the system has already processed
+     * this dependency in a previous pass
+     */
+    PROCESSED: boolean;
+
     version_data: {
         new_version: string;
         git_version: string;

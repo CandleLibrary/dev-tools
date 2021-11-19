@@ -1,8 +1,8 @@
 import child_process from "child_process";
 
-export function gitStatus(CWD: string) {
+export function gitStatus(CWD: string, pkg_path: string = "") {
     try {
-        return child_process.execSync(`git status -s --column`,
+        return child_process.execSync(`git status -s --column ${pkg_path}`,
             { cwd: CWD }
         ).toString();
     } catch (e) {
@@ -12,10 +12,10 @@ export function gitStatus(CWD: string) {
 }
 
 
-export function gitLog(CWD: string) {
+export function gitLog(CWD: string, pkg_path: string = "") {
     try {
         return child_process.execSync(
-            `git log --no-decorate`,
+            `git log --no-decorate ${pkg_path}`,
             { cwd: CWD }
         ).toString();
     } catch (e) {
