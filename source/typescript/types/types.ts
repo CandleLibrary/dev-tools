@@ -19,6 +19,7 @@ export interface Dependency {
     TEST_STATUS: TestStatus;
     reference_count: number;
     new_version: string;
+    current_version: string;
 
     /**
      * Array of commit messages in the repo.

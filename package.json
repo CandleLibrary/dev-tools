@@ -15,7 +15,8 @@
     "dependencies": {
         "@candlelib/uri": "*",
         "@candlelib/paraffin": "*",
-        "@candlelib/log": "*"
+        "@candlelib/log": "*",
+        "@types/node": "*"
     },
     "candle-lib-modules": {
         "@candlelib/flame": "*",
@@ -39,7 +40,7 @@
     "candle-env": {
         "repo-root": "ssh://git@github.com/CandleLibrary"
     },
-    "workspaces": [
+    "dev_workspaces": [
         "./packages/*"
     ]
 }

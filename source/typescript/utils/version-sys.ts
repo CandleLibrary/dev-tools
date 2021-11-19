@@ -1,16 +1,14 @@
-import { getPackageJsonObject, xtColor, col_css, xtReset, xtF } from "@candlelib/paraffin";
+import { Logger } from "@candlelib/log";
+import { col_css, getPackageJsonObject, xtColor, xtF, xtReset } from "@candlelib/paraffin";
+import URI from '@candlelib/uri';
 import child_process from "child_process";
 import fs from "fs";
 import path from "path";
-import { gitStatus, gitLog, gitAdd, gitCommit, gitTag } from "./git.js";
-import { Dependency, Dependencies, CommitLog, TestStatus, DevPkg, Version } from "../types/types";
-import URL from "@candlelib/uri";
-import { Logger } from "@candlelib/log";
-import URI from '@candlelib/uri';
+import { CommitLog, Dependencies, Dependency, DevPkg, TestStatus, Version } from "../types/types";
+import { gitLog, gitStatus } from "./git.js";
 const dev_logger = Logger.get("dev-tools").activate();
 
 const fsp = fs.promises;
-
 
 
 const channel_hierarchy = {
@@ -20,43 +18,6 @@ const channel_hierarchy = {
     "alpha": 12500,
     "experimental": 6250,
 };
-
-/**
- * Default workspace directory
- */
-const WORKSPACE_DIR: string = (await getWorkspaceEnvironmentVar())?.WORKSPACE_DIR ?? "";
-
-/**
- * Retrieves the CANDLE_ENV file* , parses it, and returns
- * a key:value object representing the environment variables
- * contained in the file.
- * 
- * *located in the root of the dev-tools repo after installation 
- * 
- * @returns Promise<Object>
- */
-export async function getWorkspaceEnvironmentVar(): Promise<{
-    [env_var: string]: string;
-}> {
-    try {
-        await URL.server();
-
-        const env_file = await fsp.readFile(
-            path.resolve(URL.getEXEURL(import.meta) + "", "../../../CANDLE_ENV"),
-            { encoding: "utf8" }
-        );
-
-        if (!env_file)
-            return null;
-        return Object.fromEntries(env_file.split("\n").filter(n => !!n).map(str => str.split("=", 2)));
-
-    } catch (e) {
-        dev_logger.error(e);
-        return null;
-    }
-}
-
-
 
 /**
  * Retrieve a candle library repo package.json object given the package name 
@@ -93,27 +54,21 @@ export async function getCandlePackage(candle_lib_name: string):
 /**
  * Runs the testing system in a new process for the givin project
  */
-export async function testPackage(pkg: DevPkg): Promise<boolean> {
+export function testPackage(pkg: DevPkg): Promise<boolean> {
+    return new Promise((res) => {
 
-    const CWD = pkg._workspace_location;
+        const CWD = pkg._workspace_location;
 
-    const test = pkg.scripts.test;
-
-    let process = null;
-
-    try {
-
-        process = child_process.execSync(test, {
-            cwd: CWD, stdio: ["pipe", "pipe", "pipe"]
+        const test = pkg.scripts.test;
+        child_process.exec(test, { cwd: CWD, }, (err, out, stderr) => {
+            if (err) {
+                dev_logger.get(`testing [${pkg.name}]`).error("Package failed testing");
+                //dev_logger.get(`testing [${pkg.name}]`).error(out + stderr);
+                res(false);
+            } else
+                res(true);
         });
-
-        return true;
-    } catch (e) {
-        dev_logger.get(`testing [${pkg.name}]`).error(e.stack);
-        dev_logger.log(e.stdout.toString());;
-    }
-
-    return false;
+    });
 }
 
 
@@ -170,14 +125,6 @@ export async function* getPackageDependenciesGen(
     return dependencies;
 }
 
-/* export async function getPackageDependencies(dep: Dependency) {
-    const iter = await getPackageDependenciesGen(dep);
-    let val = null;
-    while ((val = (await iter.next())).done == false);
-
-    return val.value;
-} */
-
 export async function createDepend(dep_pkg: string | DevPkg): Promise<Dependency> {
 
     if (typeof dep_pkg == "string")
@@ -202,6 +149,7 @@ export async function createDepend(dep_pkg: string | DevPkg): Promise<Dependency
             TEST_STATUS: TestStatus.NOT_RUN,
             reference_count: 0,
             new_version: "",
+            current_version: dep_pkg.version,
             commits,
             DIRTY_REPO,
             PROCESSED: false,
@@ -269,10 +217,10 @@ export async function getNewVersionNumber(dep: Dependency, release_channel = "",
 
     new_version.channel = release_channel;
 
-    dev_logger.log(`Determined latest version for ${dep.name}: ${versionToString(latest_version)} `);
-
-    if (commit_drift > 0)
-        dev_logger.log(`Determined next version for ${dep.name}: ${versionToString(new_version)} `);
+    if (commit_drift > 0) {
+        pkg_logger(dep).log(`Determined latest version for ${dep.name}: ${versionToString(latest_version)} `);
+        pkg_logger(dep).log(`Determined next version for ${dep.name}: ${versionToString(new_version)} `);
+    }
 
     return {
         new_version: versionToString(new_version),
@@ -284,11 +232,12 @@ export async function getNewVersionNumber(dep: Dependency, release_channel = "",
 }
 
 
-export function getChangeLog(dep: Dependency, release_channel = "", RELEASE = false) {
+export function getChangeLog(dep: Dependency) {
 
     let logs = [];
 
     for (const commit of dep.commits) {
+
         if (Commit_Is_Top_Of_Prev_Version(commit, dep)) {
             break;
         } else if (commit.message.match(/#changelog\s*$/gmi)) {
@@ -296,7 +245,9 @@ export function getChangeLog(dep: Dependency, release_channel = "", RELEASE = fa
         }
     }
 
-    dev_logger.log(`Building change log for ${dep.name}`);
+
+
+    pkg_logger(dep).log(`Building new logs for CHANGELOG.md`);
 
     return logs.map(log => {
         const BREAKING = !!log.message.match(/^\#?[Bb]reak(ing)?/g);
@@ -308,7 +259,8 @@ export function getChangeLog(dep: Dependency, release_channel = "", RELEASE = fa
 }
 
 function Commit_Is_Top_Of_Prev_Version(commit: CommitLog, dep: Dependency) {
-    return commit.message.includes("version"); //commit.message.includes(dep.name) && commit.message.includes(dep.name) && commit.message.includes(dep.package.version);
+
+    return commit.message.includes(dep.name) && commit.message.includes(dep.current_version + "");
 }
 
 function createISODateString(date: string = new Date + "") {
@@ -366,6 +318,10 @@ export function getCandleLibraryDependNames(pkg: DevPkg) {
     return Object.getOwnPropertyNames(pkg?.dependencies).filter(name => name.includes("@candlelib"));
 }
 
+function pkg_logger(dep: Dependency) {
+    return dev_logger.get(dep.package.name);
+}
+
 export async function validateDepend(dep: Dependency) {
 
     if (dep.DIRTY_REPO) {
@@ -378,23 +334,23 @@ export async function validateDepend(dep: Dependency) {
                     .replace(/^\?\?/g, xtF(xtColor(col_css.green)) + "??" + xtF(xtReset))
             ).join("\n");
 
-        dev_logger.warn(`${dep.name} has uncommitted changes and cannot be versioned: \n${status}`);
+        pkg_logger(dep).warn(`package has uncommitted changes and cannot be versioned: \n${status}`);
 
         return false;
     }
 
-    dev_logger.log(`Running tests for ${dep.name}`);
+    pkg_logger(dep).log(`Running tests`);
 
     if (!await testPackage(dep.package)) {
 
         dep.TEST_STATUS = TestStatus.FAILED;
 
-        dev_logger.warn(`${dep.name} has failed tests`);
+        pkg_logger(dep).warn(`package has failed tests`);
 
         return false;
     }
 
-    dev_logger.log(`${dep.name} tests completed.`);
+    pkg_logger(dep).log(`package tests completed.`);
 
     dep.TEST_STATUS = TestStatus.PASSED;
 
@@ -406,10 +362,12 @@ export async function validateEligibilityPackages(
     getDependencyNames: (arg: DevPkg) => string[],
     DRY_RUN: boolean = false,
 ) {
+
     const dependencies = new Map(packages.map(p => [p.name, p]));
 
     let processed = new WeakSet();
     for (const depend_set of await Promise.all(packages.map(pkg => validateEligibility(pkg, getDependencyNames, DRY_RUN, dependencies)))) {
+
         for (const dep of depend_set) {
 
             if (processed.has(dep))
@@ -430,79 +388,84 @@ export async function validateEligibilityPackages(
                         : dep.version_data.latest_version;
                 }
 
+            const logger = pkg_logger(dep);
+
             if (dep.version_data.NEW_VERSION_REQUIRED) {
 
-                dev_logger.log(`Updating ${dep.name}`);
-
-                const logs = getChangeLog(dep);
-
-                if (logs.length > 0) {
-                    //append to change log
-
-                    const
-                        change_log_entry = `## [v${dep.version_data.new_version}] - ${createISODateString()} \n\n` + logs.join("\n\n"),
-
-                        cwd = dep.package._workspace_location,
-
-                        change_log_path = path.resolve(cwd, "CHANGELOG.md");
-
-                    let file = "";
-
-                    try {
-                        file = await fsp.readFile(change_log_path, { encoding: "utf8" });
-                    } catch (e) { }
-
-                    if (!file) {
-                        file = `## [v${dep.version_data.latest_version}] \n\n- No changes recorded prior to this version.`;
-                    }
-
-                    dev_logger.log(`Adding ${logs.length} new CHANGELOG entr${logs.length > 1 ? "ies" : "y"}:\n`);
-
-                    for (const log of logs)
-                        dev_logger.log(log);
-
-                    if (!DRY_RUN)
-
-                        await fsp.writeFile(change_log_path, change_log_entry + "\n\n" + file);
-                }
+                logger.log(`Updating ${dep.name}`);
 
                 pkg.version = dep.version_data.new_version;
 
                 const json = JSON.stringify(Object.assign({}, pkg, { _workspace_location: undefined }), null, 4);
 
-                if (!DRY_RUN)
-                    await fsp.writeFile(path.resolve(pkg._workspace_location, "package.json"), json);
+                logger.log(`Updating package.json to v${dep.version_data.new_version}`);
+                if (!DRY_RUN) await fsp.writeFile(path.resolve(pkg._workspace_location, "package.json"), json);
 
-                dev_logger.log(`Updating package.json to v${dep.version_data.new_version}`);
+                logger.log(`Creating A commit.bounty for ${dep.name}@${dep.version_data.new_version}`);
+                if (!DRY_RUN) await createPublishBounty(pkg, dep);;
 
-                if (!DRY_RUN)
-                    gitAdd(dep.package._workspace_location);
-
-                dev_logger.log(`Creating commit for ${dep.name}@${dep.version_data.new_version}`);
-
-                if (!DRY_RUN)
-                    gitCommit(dep.package._workspace_location, `version ${dep.name}@${dep.version_data.new_version}`);
-
-                dev_logger.log(`Creating tag for ${dep.name}@${dep.version_data.new_version}`);
-
-                if (!DRY_RUN)
-                    gitTag(dep.package._workspace_location, `version/${dep.name}@v${dep.version_data.new_version}`);
-
-                dev_logger.log(`Creating publish bounty for ${dep.name}@${dep.version_data.new_version}`);
-                if (!DRY_RUN) {
-                    await fsp.writeFile(path.resolve(pkg._workspace_location, "publish.bounty"), `#! /bin/bash \n yarn publish --new-version ${dep.version_data.new_version} \n rm ./publish.bounty`, {
-                        mode: 0o777
-                    });
-                }
-
+                logger.log(`Creating a publish.bounty for ${dep.name}@${dep.version_data.new_version}`);
+                if (!DRY_RUN) await createCommitBounty(pkg, dep);
             } else
-
-                dev_logger.log(`No version change required for ${dep.name} at v${dep.version_data.latest_version}`);
+                //logger.log(`No version change required for ${dep.name} at v${dep.version_data.latest_version}`);
+                ;
 
         }
     }
 
     new Set();
+}
+
+async function createPublishBounty(pkg: DevPkg, dep: Dependency) {
+
+    await fsp.writeFile(path.resolve(pkg._workspace_location, "publish.bounty"),
+        `#! /bin/sh 
+
+yarn publish --new-version ${dep.version_data.new_version}  
+
+rm ./publish.bounty
+`, {
+        mode: 0o777
+    });
+}
+
+async function createCommitBounty(pkg: DevPkg, dep: Dependency) {
+
+    const logs = getChangeLog(dep);
+
+    if (logs.length > 0) {
+        //append to change log
+
+        const
+            change_log_entry = `## [v${dep.version_data.new_version}] - ${createISODateString()} \n\n` + logs.join("\n\n");
+
+        await fsp.writeFile(path.resolve(pkg._workspace_location, "change_log_addition.md"), change_log_entry + "\n\n");
+    }
+
+    const version = dep.version_data.new_version;
+
+    const change_log = getChangeLog(dep);
+    const cl_data = change_log.join("\n");
+
+    await fsp.writeFile(path.resolve(pkg._workspace_location, "commit.bounty"),
+        `#! /bin/sh 
+
+touch ./change_log_addition.md
+
+echo -n "$( cat ./CHANGELOG.md || '' )" >> ./change_log_addition.md
+
+mv -f ./change_log_addition.md ./CHANGELOG.md
+
+git add ./
+
+git reset ./commit.bounty ./publish.bounty ./change_log_addition.md
+
+git commit -m "version ${dep.name} to ${version}"
+
+rm ./commit.bounty
+`, {
+        mode: 0o777
+    });
 }
 
 export async function validateEligibility(
