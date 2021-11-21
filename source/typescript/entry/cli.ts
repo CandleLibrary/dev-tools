@@ -5,7 +5,7 @@ import {
 } from "@candlelib/paraffin";
 import URI from "@candlelib/uri";
 import { Logger } from "@candlelib/log";
-import { createDepend, getCandlePackage, validateEligibility, validateEligibilityPackages, getCandleLibraryDependNames } from "../utils/version-sys.js";
+import { createDepend, getPackageData, validateEligibility, validateEligibilityPackages, getCandleLibraryDependNames } from "../utils/version-sys.js";
 import fs from "fs";
 const dev_logger = Logger.get("dev-tools").activate();
 
@@ -104,7 +104,7 @@ packages.`,
             // Attempt to version the package that is located 
             // at CWD
 
-            const pk = await getCandlePackage(pkg.name.replace("@candlelib/", process.cwd() + "/../"));
+            const pk = await getPackageData(pkg.name.replace("@candlelib/", process.cwd() + "/../"));
 
             const dep = await createDepend(pk);
 
@@ -194,7 +194,7 @@ module imports.`,
 
             for (const name of candlelib_repo_names) {
 
-                const pkg = await getCandlePackage(name);
+                const pkg = await getPackageData(name);
 
                 const simple_name = name.replace("@candlelib/", "");
                 if (pkg) {
@@ -234,7 +234,7 @@ Publishes any Candle Library package that has a publish.bounty file.`,
 
     for (const name of candlelib_repo_names) {
 
-        const dep = await getCandlePackage(name);
+        const dep = await getPackageData(name);
 
         if (dep) {
 
