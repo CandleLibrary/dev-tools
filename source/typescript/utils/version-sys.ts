@@ -138,6 +138,8 @@ export async function createDepend(dep_pkg: string | DevPkg, prev_commit: string
 
         const commit_string = gitLog(CWD, dep_pkg._workspace_location, prev_commit);
 
+        console.log({ commit_string });
+
         const commits: CommitLog[] = <any>commit_string
             .split(/^\s*commit\s*/mg)
             .map(str => str.match(/^(?<hash>.*)$\s*author\s*\:(?<author>.*)$\s*date\s*\:(?<date>.*)$(?<message>(.|\.|[\n\s\r])+)/mi)?.groups)
@@ -303,7 +305,7 @@ function versionToString(
     new_version: Version,
     release_channel: string = new_version.channel
 ) {
-    return new_version.sym.join(".") + (release_channel ? "-" + release_channel : "");
+    return (new_version.sym.join(".") + (release_channel ? "-" + release_channel : "")).toString();
 }
 
 function parseVersion(original_version: string) {
@@ -471,6 +473,9 @@ git switch $STAGED_VERSION_BRANCH
 git merge --squash -X theirs $CURR_COMMIT
 
 LAST_VER_LOG=$(echo $(git --no-pager log --no-decorate HEAD^! ))
+
+export LAST_VER_LOG
+
 LAST_VER_DIGITS=$(node -e "console.log(process.env.LAST_VER_LOG.match(/Version\\s*(\\d+)/)[1])")
 
 echo "Last Version $LAST_VER_DIGITS origin commit: $PREV_COMMIT"
@@ -491,7 +496,7 @@ VER_PLUS=$(expr $LAST_VER_DIGITS + 1)
 
 git commit -m "Project Version $VER_PLUS
 
-${bounty_paths.map((p, i) => `${p} @v${p.version_data.latest_version}}`).join("\n")}
+${bounty_paths.map((p, i) => `${p.name} @v${p.version_data.new_version}`).join("\n")}
 
 origin:$CURR_COMMIT"
 `, { mode: 0o777 });
@@ -504,12 +509,13 @@ origin:$CURR_COMMIT"
  */
 
 function createStagedVersionBranch() {
+
     const branch = process.env.STAGED_VERSION_BRANCH;
     dev_logger.log(`Creating branch ${branch}`);
     return execSync(`
-CURR_BRANCH=$(git rev-parse --abbrev-ref HEAD) > /dev/null
+CURR_BRANCH=$(git rev-parse HEAD) > /dev/null
 
-git checkout -b ${branch} > /dev/null
+git checkout --track $VER_REMOTE_REPO/$STAGED_VERSION_BRANCH -B $STAGED_VERSION_BRANCH > /dev/null
     
 ROOT_COMMIT="$( git rev-list --max-parents=0 HEAD )"
 
@@ -524,18 +530,20 @@ function getLastTrackedCommit() {
     return execSync(`
 git reset --hard > /dev/null 2>&1
 
-CURR_BRANCH=$(git rev-parse --abbrev-ref HEAD) > /dev/null 2>&1
+CURR_BRANCH=$(git rev-parse HEAD) > /dev/null 2>&1
 
-git checkout $STAGED_VERSION_BRANCH > /dev/null 2>&1
+git checkout --track $VER_REMOTE_REPO/$STAGED_VERSION_BRANCH -B $STAGED_VERSION_BRANCH > /dev/null 2>&1
 
 LAST_VER_LOG=$(echo $(git --no-pager log --no-decorate HEAD^! )) > /dev/null 2>&1
+
+export LAST_VER_LOG
 
 LAST_VER_ORIGIN=$(node -e "console.log(process.env.LAST_VER_LOG.match(/origin:\\s*(.+)/)?.[1] ?? \\"\\")")
 
 git checkout $CURR_BRANCH > /dev/null 2>&1
 
 echo $LAST_VER_ORIGIN
-`).toString().trim();
+`, ).toString().trim();
 }
 export async function validateEligibilityPackages(
     /**

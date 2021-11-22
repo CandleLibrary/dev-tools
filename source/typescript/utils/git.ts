@@ -15,7 +15,7 @@ export function gitStatus(CWD: string, pkg_path: string = "") {
 export function gitLog(CWD: string, pkg_path: string = "", prev_commit) {
     try {
         return child_process.execSync(
-            `git log --no-decorate ${prev_commit ? `${prev_commit}..HEAD ` : ""}${pkg_path}`,
+            `git log --no-decorate ${prev_commit ? `${prev_commit}..HEAD ` : ""}${pkg_path} || git log --no-decorate ${pkg_path}`,
             { cwd: CWD }
         ).toString();
     } catch (e) {
